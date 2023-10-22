@@ -68,13 +68,14 @@ SSD1306 display(0x3c, SDA_PIN, SCL_PIN);
 WebServer web_server(80);
 WebSocketsServer webSocket = WebSocketsServer(81);  // Port 81'de bir WebSocket sunucusu başlatın
 
-
+boolean cardRead = false;  
 // Global variables for wifi management
 boolean wifi_connected = false;
 long wifi_disconnected_time = 0;
 
 void readAndSendRFIDData() {
     if (mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) {
+        cardRead = true;  
         mfrc522.PICC_DumpToSerial(&(mfrc522.uid));  // Kartın içeriğini seri port üzerinden yazdır
 
         // UID'yi oku ve dizeye dönüştür
@@ -114,6 +115,8 @@ void readAndSendRFIDData() {
         // Verileri JSON olarak hazırlayın ve web soketi üzerinden gönderin
         String message = "{\"uid\":\"" + uid + "\", \"blockData\":\"" + blockData + "\"}";
         webSocket.broadcastTXT(message);  // Tüm istemcilere verileri gönderin
+    } else if (!mfrc522.PICC_IsNewCardPresent()) {
+        cardRead = false;  // Kart kaldırıldı, bayrağı sıfırla
     }
 }
 
@@ -156,7 +159,9 @@ void loop() {
             delay(2000);
             display_price();
         }
-        readAndSendRFIDData();  // RFID kartını oku ve verileri gönder
+        if (!cardRead) {  // cardRead bayrağı kontrol ediliyor
+            readAndSendRFIDData();  // RFID kartını oku ve verileri gönder
+        }// RFID kartını oku ve verileri gönder
     }
     invert_display_periodically();
     rfid_periodic_self_test();
